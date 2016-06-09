@@ -75,9 +75,9 @@ def main(argv = None):
          #nz = int(line.split()[9])
          #supercell_size = nx*ny*nz
     # supercell
-    nx=2
-    ny=1
-    nz=1
+    nx=5
+    ny=5
+    nz=5
     supercell_size = nx*ny*nz
     
     ifc_data=dict()   
@@ -150,23 +150,11 @@ def main(argv = None):
       #print m#, ifc_data['Supercell   1'][m]
     #print permutations, 'ab', a    
     
-    
-    keylist = ifc_data.keys()
-    keylist.sort()
-    
-     
-    for x in xrange(0,ions):
-     print 'ATOM %s' % (x+1) # debug
-     i=0
-     for y in xrange(0,ions):
-      for key in keylist: 
-        i+=1       
-        print (x*nx+1),i
-        
-        print ifc_data[key][ions*y+x]
+
 
     j=0
     j2=0 
+    indeces_array = []
     for every_atom in xrange(0,ions*nx*ny*nz):
         print "ATOM %s" %(every_atom+1)
         j+=1
@@ -178,13 +166,7 @@ def main(argv = None):
         lol, wow = divmod(every_atom, nx)
         lol1, wow1 = divmod(every_atom, nx*ny)
     	for every_ion in xrange(0,ions):
-                
-		for every_ion2 in xrange(0,ions):
-			for key in keylist:
-                            
-                            print ifc_data[key][ions*every_ion2 + every_ion]
-		
-		
+	
         	for z in xrange(0,nz):
  			
                         l2 = z + lol1 + every_ion*nz
@@ -198,12 +180,64 @@ def main(argv = None):
                                      l = (x+j2) + y*nx + z*ny*nx + every_ion*nz*ny*nx
                                      ox,ux = divmod(l-1,nx)
                                                                           
-                                     print j,  (ux+1+nx*uy+uz*ny*nx + every_ion*nz*ny*nx)
+                                     #print j,  (ux+1+nx*uy+uz*ny*nx + every_ion*nz*ny*nx)
+                                     indeces_array.append([int(j), int((ux+1+nx*uy+uz*ny*nx + every_ion*nz*ny*nx))])
+                                 
+                                   
  
     print len(ifc_data) # < gives the number of supercells
-    #print ifc_data[0]
+    print indeces_array
 
-       
+    
+    keylist = ifc_data.keys()
+    keylist.sort()
+    
+
+    ifc_for_sheng=dict()
+    i=0
+    # go through all columns
+    for x in xrange(0,ions):
+        
+        # do the process for all copies of atom (x) 
+        # [just keep the same column and print its data again]
+        for lp in xrange(0,(nx*ny*nz)):
+             
+	     print 'ATOM %s' % (ions*x + lp + 1) # debug
+	     
+             # extract data from a column (given by x) for the interaction between
+             # atom N with a given atom (defined by x above)
+	     for y in xrange(0,ions):
+                   # go through all supercells
+   		   for key in keylist: 
+    			    i+=1       
+     			    #print (x*nx+1),i
+                            print indeces_array[i-1]
+                            # here [1] and [0] define the direction of the force
+                            ion_couple = '%4s'%indeces_array[i-1][1] + '%4s' %indeces_array[i-1][0]
+                            ifc_for_sheng[ion_couple]= [ifc_data[key][ions*y+x]]
+                            
+                            print ion_couple
+                            
+                           #print 'i:', i, 'y:' ,y, 'lp:', lp, 'x:', x
+        		    print ifc_data[key][ions*y+x]  
+    
+
+
+    f = open('IFC2nd', 'w')
+    f_struct = '%4s' %str(nx*ny*nz*ions) + '\n'
+    for key1 in sorted(ifc_for_sheng):
+       f_struct += str(key1) + '\n'
+       for m in range(3):
+         for l in range (3):
+         #number2 = '%15s'%ifc_for_sheng[key1][0][m][0]
+         #print number2
+           f_struct += '%22s' %str("{0:.15f}".format(ifc_for_sheng[key1][0][m][l])) 
+         f_struct += '\n'
+      # print key1
+      # print ifc_for_sheng[key1]
+    #print ifc_for_sheng['4   4']
+    f.write(f_struct)
+    f.close()                         
 
 if __name__ == "__main__":
     import sys
