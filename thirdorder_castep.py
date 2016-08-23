@@ -19,13 +19,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
 #  Using thirdorder_vasp.py as a basis to create thirdorder_castep.py
 #  1) start by converting [read_POSCAR] to read_CASTEP
 #  2) make the [write_POSCAR] output to a suitable castep form
 #  3) Find out what needs to be converted for the reap command 
+# Usage: read README file
+# Needed files: <seedname>.cell made of a converged calculation 
 
 import os.path
 import glob
@@ -86,6 +85,9 @@ def read_POSCAR(directory):
            elif '%ENDBLOCK positions_frac' in line:
                 index_end = index
                 print 'end index', index_end
+
+        print index_end, 'len castep.cell', len(castep_cell)
+        
         for i in range(index_start+1, index_end):
                atoms_list.append(castep_cell[i].split())
         atoms_list = filter(None,atoms_list)
@@ -104,7 +106,6 @@ def read_POSCAR(directory):
         nruter["elements"].sort()
         print 'nruter["elements"]', nruter["elements"]
         
-
      
         nruter["numbers"]= np.array([int(test.count(nruter["elements"][i])) for i in range(len(nruter["elements"]))],dtype=np.intc)  
         nruter["types"]=[]
@@ -120,6 +121,10 @@ def write_POSCAR(poscar,filename):
     """
     Write the contents of poscar to filename.
     """
+    f=open("castep.cell","r")
+    castep_cell = f.readlines()
+    
+
     global hashes
     f=StringIO.StringIO()
     #f.write("1.0\n")
@@ -142,6 +147,13 @@ def write_POSCAR(poscar,filename):
             poscar["positions"][:,l].tolist()))
         k += j + 1
     f.write("%ENDBLOCK positions_frac\n")
+
+    # Copy everything after '%ENDBLOCK positions_frac'
+    for index, line in enumerate(castep_cell):
+           if '%ENDBLOCK positions_frac' in line:
+                index_end = index
+    for i in xrange(index_end+1,len(castep_cell)):
+          f.write(castep_cell[i])
 
     with open(filename,"w") as finalf:
        
