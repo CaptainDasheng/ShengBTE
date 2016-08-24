@@ -23,8 +23,14 @@
 #  1) start by converting [read_POSCAR] to read_CASTEP
 #  2) make the [write_POSCAR] output to a suitable castep form
 #  3) Find out what needs to be converted for the reap command 
-# Usage: read README file
-# Needed files: <seedname>.cell made of a converged calculation 
+# Usage: 
+# sow ---> thirdorder_castep.py sow nx ny nz cutoff seedname
+# Example: thirdorder_castep.py sow 1 1 1 -3 InAs
+# reap --> find seedname-3RD/job* -name seedname.castep | sort -n| thirdorder_castep.py reap nx ny nz cutoff
+# Example: find InAs-3RD/job* -name InAs.castep | sort -n| thirdorder_castep.py reap 1 1 1 -3
+# Needed files: relaxed <seedname>.cell, recpots[usp are generated on the fly] in root dir and <seedname>.param   
+
+
 
 import os.path
 import glob
@@ -66,12 +72,9 @@ def read_POSCAR(directory):
     with dir_context(directory):
         nruter=dict()
         nruter["lattvec"]=np.empty((3,3))
-        nruter["elements"]=[]
-        
-        f=open("castep.cell","r")
+        nruter["elements"]=[]        
+        f=open(seedname+".cell","r")
         castep_cell = f.readlines()
-        
-
         atoms_list = []
         for index, line in enumerate(castep_cell):
            if '%BLOCK lattice_cart' in line:              
@@ -79,70 +82,55 @@ def read_POSCAR(directory):
                   new_line = index + i + 1
                   nruter["lattvec"][:,i]=[float(j) for j in castep_cell[new_line].split()]
            #elif '%BLOCK lattice_abc' in line: # add this part later
+           
            elif '%BLOCK positions_frac' in line:
                 index_start = index
-                print 'start block', index_start
+                
            elif '%ENDBLOCK positions_frac' in line:
                 index_end = index
-                print 'end index', index_end
-
-        print index_end, 'len castep.cell', len(castep_cell)
+                
         
+        nruter["lattvec"]*=0.1
         for i in range(index_start+1, index_end):
                atoms_list.append(castep_cell[i].split())
         atoms_list = filter(None,atoms_list)
-        atoms_list.sort(key=lambda tup: tup[0])  # for now
-        print ' TEST' ,atoms_list
+        atoms_list.sort(key=lambda tup: tup[0]) 
         natoms1 = len(atoms_list)
         nruter["positions"]=np.empty((3,natoms1))
-        for i in range(natoms1):
-             
+        for i in range(natoms1):          
             nruter["positions"][:,i]=[float(atoms_list[i][j]) for j in xrange(1,4)]
-            nruter["elements"].append(str(atoms_list[i][0]))
-        print 'nruter["elements"]', nruter["elements"]
+            nruter["elements"].append(str(atoms_list[i][0]))        
         nruter["elements"].sort(key=lambda tup: tup[0])
         test = nruter["elements"]
         nruter["elements"]=list(set(nruter["elements"]))
         nruter["elements"].sort()
-        print 'nruter["elements"]', nruter["elements"]
-        
-     
         nruter["numbers"]= np.array([int(test.count(nruter["elements"][i])) for i in range(len(nruter["elements"]))],dtype=np.intc)  
         nruter["types"]=[]
-        print 'nruter["numbers"]', nruter["numbers"]
         for i in xrange(len(nruter["numbers"])):
-             nruter["types"]+=[i]*nruter["numbers"][i]
-       
-      #  print 'test2',  nruter1["elements"], nruter1["numbers"], test.count(nruter1["elements"][1])    
-        
+             nruter["types"]+=[i]*nruter["numbers"][i]    
     return nruter
 
 def write_POSCAR(poscar,filename):
     """
     Write the contents of poscar to filename.
     """
-    f=open("castep.cell","r")
-    castep_cell = f.readlines()
     
-
+    f=open(seedname+".cell","r")
+    castep_cell = f.readlines()
     global hashes
     f=StringIO.StringIO()
-    #f.write("1.0\n")
     f.write("%BLOCK lattice_cart\n")
     for i in xrange(3):
         f.write("{0[0]:>20.15f} {0[1]:>20.15f} {0[2]:>20.15f}\n".format(
-            (poscar["lattvec"][:,i]).tolist()))
+            (poscar["lattvec"][:,i]*10).tolist()))
     f.write("%ENDBLOCK lattice_cart\n")
     f.write("\n")
     f.write("%BLOCK positions_frac\n")
-    
     k = 0
     for i in xrange(len(poscar["numbers"])):
-        
         for j in xrange(poscar["numbers"][i]):
            l = k + j
            f.write("{0}".format("".join(poscar["elements"][i]))) 
-
            f.write("{0[0]:>20.15f} {0[1]:>20.15f} {0[2]:>20.15f}\n".format(
             poscar["positions"][:,l].tolist()))
         k += j + 1
@@ -154,9 +142,7 @@ def write_POSCAR(poscar,filename):
                 index_end = index
     for i in xrange(index_end+1,len(castep_cell)):
           f.write(castep_cell[i])
-
     with open(filename,"w") as finalf:
-       
         finalf.write(f.getvalue())
     f.close()
 
@@ -189,7 +175,6 @@ def read_forces(filename):
     f=open(filename,"r")
     castep_forces = f.readlines()
     f.close()    
-
     nruter = []
     for index, line in enumerate(castep_forces):
          if 'Total number of ions in cell' in line:
@@ -200,9 +185,7 @@ def read_forces(filename):
                 
                 f = starting_line + i
                 nruter.append([float(castep_forces[f].split()[m]) for m in range(3,6)])
-    
     nruter=np.array(nruter,dtype=np.double)
-    
     return nruter
 
 
@@ -219,10 +202,11 @@ def build_unpermutation(sposcar):
 
 
 if __name__=="__main__":
-    if len(sys.argv)!=6 or sys.argv[1] not in ("sow","reap"):
-        sys.exit("Usage: {0} sow|reap na nb nc cutoff[nm/-integer]".format(sys.argv[0]))
+    if len(sys.argv)!=7 or sys.argv[1] not in ("sow","reap"):
+        sys.exit("Usage: {0} sow|reap na nb nc cutoff[nm/-integer] seedname".format(sys.argv[0]))
     action=sys.argv[1]
     na,nb,nc=[int(i) for i in sys.argv[2:5]]
+    seedname=sys.argv[6]
     if min(na,nb,nc)<1:
         sys.exit("Error: na, nb and nc must be positive integers")
     if sys.argv[5][0]=="-":
@@ -240,10 +224,10 @@ if __name__=="__main__":
             sys.exit("Error: invalid cutoff")
         if frange==0.:
             sys.exit("Error: invalid cutoff")
-    print "Reading POSCAR"
+    print "Reading %s.cell" %str(seedname)
     poscar=read_POSCAR(".")
     natoms=len(poscar["types"])
-    print "Analyzing the symmetries", poscar, natoms
+    print "Analyzing the symmetries"
     symops=thirdorder_core.SymmetryOperations(
         poscar["lattvec"],poscar["types"],
         poscar["positions"].T,SYMPREC)
@@ -269,11 +253,11 @@ if __name__=="__main__":
     print "- {0} DFT runs are needed".format(nruns)
     if action=="sow":
         print sowblock
-        print "Writing undisplaced coordinates to 3RD.CASTEP"
-        write_POSCAR(normalize_SPOSCAR(sposcar),"3RD.CASTEP.cell")
+        print "Writing undisplaced coordinates to 3RD.%s.cell" %str(seedname)
+        write_POSCAR(normalize_SPOSCAR(sposcar),"3RD."+str(seedname)+".cell")
         width=len(str(4*(len(list4)+1)))
-        namepattern="3RD.CASTEP.{{0:0{0}d}}.cell".format(width)
-        print "Writing displaced coordinates to 3RD.CASTEP.*"
+        namepattern="3RD."+str(seedname)+".{{0:0{0}d}}.cell".format(width)
+        print "Writing displaced coordinates to 3RD.%s.*.cell" %str(seedname)
         for i,e in enumerate(list4):
             for n in xrange(4):
                 isign=(-1)**(n//2)
@@ -300,9 +284,9 @@ if __name__=="__main__":
         nfiles=len(filelist)
         print "- {0} filenames read".format(nfiles)
         if nfiles!=nruns:
-            print 'sys.exit disabled for a moment'
-            # sys.exit("Error: {0} filenames were expected".
-           #          format(nruns))
+            #print 'sys.exit disabled for a moment'
+            sys.exit("Error: {0} filenames were expected".
+                     format(nruns))
         for i in filelist:
             if not os.path.isfile(i):
                 sys.exit("Error: {0} is not a regular file".
