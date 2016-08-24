@@ -1,7 +1,7 @@
 #!/bin/bash
 
-max_jobs=20                   # maximum number of simultaneous jobs
-cpus=1                       # number of cores for mpirun -np
+max_jobs=2                   # maximum number of simultaneous jobs
+cpus=2                       # number of cores for mpirun -np
 jns_ls=list.txt              # temporary list where jobnames are stored
 
 if [ -z "$1" ]; then
@@ -11,7 +11,7 @@ if [ -z "$1" ]; then
     exit
 fi
 
-# If a file with a similar name exists delete it
+# If &jns_ls exists before the run, delete it
 if [ -f $jns_ls ]; then
     rm -rf $jns_ls
 fi

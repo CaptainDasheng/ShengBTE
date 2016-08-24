@@ -284,7 +284,6 @@ if __name__=="__main__":
         nfiles=len(filelist)
         print "- {0} filenames read".format(nfiles)
         if nfiles!=nruns:
-            #print 'sys.exit disabled for a moment'
             sys.exit("Error: {0} filenames were expected".
                      format(nruns))
         for i in filelist:

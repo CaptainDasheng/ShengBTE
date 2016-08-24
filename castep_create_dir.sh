@@ -10,7 +10,7 @@ fi
 seedname=$1
 rm -rf $seedname-3RD 
 mkdir $seedname-3RD 
-for i in 3RD.CASTEP.*; do 
+for i in 3RD.$seedname.*; do 
    s=$(echo $i|cut -d"." -f3) &&
    d=$seedname-3RD/job-$s &&
    mkdir $d &&
