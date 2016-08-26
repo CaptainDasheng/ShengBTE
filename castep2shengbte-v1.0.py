@@ -136,8 +136,7 @@ def main(argv = None):
                                   float(castep_data[index+2+i*3+j].split()[1]), 
                                   float(castep_data[index+2+i*3+j].split()[2])])
                    
-              break # avoid double counting   
-                    
+            break # avoid double counting                  
     ifc_data=dict()   
     for i in range(supercell_size):
         supercell = "Supercell" + "%4s" %(i+1)
@@ -311,7 +310,8 @@ def main(argv = None):
     f.write(f_control)
     f.close()                      
 ####################################################################################################################################################
-
+    print '||                        DONE                         ||'
+    print '========================================================='
 
 if __name__ == "__main__":
     import sys
