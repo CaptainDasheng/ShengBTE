@@ -1,7 +1,7 @@
 #!/bin/bash
 
-max_jobs=2                   # maximum number of simultaneous jobs
-cpus=2                       # number of cores for mpirun -np
+max_jobs=4                   # maximum number of simultaneous jobs
+cpus=4                       # number of cores for mpirun -np
 jns_ls=list.txt              # temporary list where jobnames are stored
 
 if [ -z "$1" ]; then

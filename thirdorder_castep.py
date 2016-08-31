@@ -60,6 +60,7 @@ sys.path.insert(0, '../')
 import thirdorder_core
 from thirdorder_common import *
 
+
 # Convert this to castep. Will use a cell file for the moment
 
 ########################################################################
@@ -185,6 +186,7 @@ def read_forces(filename):
                 
                 f = starting_line + i
                 nruter.append([float(castep_forces[f].split()[m]) for m in range(3,6)])
+                print castep_forces[f]
     nruter=np.array(nruter,dtype=np.double)
     return nruter
 
@@ -273,8 +275,7 @@ if __name__=="__main__":
                 write_POSCAR(dsposcar,filename)
     else:
         print reapblock
-        print "XML ElementTree implementation: {0}".format(xmllib)
-        print "Waiting for a list of vasprun.xml files on stdin"
+        print "Waiting for a list of %s.castep files on stdin" %str(seedname)
         filelist=[]
         for l in sys.stdin:
             s=l.strip()
@@ -291,12 +292,9 @@ if __name__=="__main__":
                 sys.exit("Error: {0} is not a regular file".
                          format(i))
         print "Reading the forces"
-        print 'sposcar',sposcar
         p=build_unpermutation(sposcar)
-        print 'p',p
         forces=[]
-        for i in filelist:
-            print read_forces(i)
+        for i in filelist:            
             forces.append(read_forces(i)[p,:])
             print "- {0} read successfully".format(i)
             res=forces[-1].mean(axis=0)
