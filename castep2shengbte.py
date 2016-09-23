@@ -112,7 +112,6 @@ def main(argv = None):
     types = []
     for number_ions in range(len(positions)):
 		for position, item in enumerate(species_names):
-                  print position, item
                   if positions[number_ions][0] in item:
                     types.append(position+1)
 
