@@ -34,7 +34,7 @@ import numpy as np
 def main(argv = None):
     print '========================================================='
     print '||              CASTEP 2 ShengBTE Interface            ||'
-    print '||                     version 1.1                     ||'
+    print '||                     version 0.1                     ||'
     print '||                     12 Sep 2016                     ||'
     print '||-----------------------------------------------------||'
     if argv is None:
