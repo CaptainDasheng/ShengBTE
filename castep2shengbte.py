@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# CASTEP 2 ShengBTE Interface
+# CASTEP interface to ShengBTE-v1.1
+# Written by Genadi Naydenov <gan503@york.ac.uk> University of York (2016)
 #
-# usage ./castep2shengbte.py <seedname>
+# USAGE: ./castep2shengbte.py <seedname>
 #
 # Input files: <seedname>.castep
 #
@@ -155,15 +156,12 @@ def main(argv = None):
               # Go through all lines for a supercell
               for n in range(ions):
                  for i in range(3): 
-
                     # CASTEP data is contained into 6 columns with ceil(atoms/2) rows.
                     # line_data stores this data into a single row.
                     line_data = []
                     for f in range(l_castep):                                             
                         new_line = index + (n*3)*l_castep + i*l_castep + f + 1                 
                         line_split = castep_data[new_line].split()
-                        #print 'line', new_line , line_split
-
                         if len(line_split)==8:
                            line_data+=(float(line_split[j]) for j in xrange(2, 8))
                         elif len(line_split)<8 and len(line_split)>3:
@@ -172,9 +170,9 @@ def main(argv = None):
                            line_data+=(float(line_split[j]) for j in xrange(0, 3))
                      
                     supercell_3nx3n_matrix += [line_data]
-
                     for m in range(ions):
-                        ifc_data[supercell][ions*n+m][i]=[float(supercell_3nx3n_matrix[3*n+i][j]) for j in xrange(m*3, 3*m+3)]
+                        ifc_data[supercell][ions*n+m][i]=[float(supercell_3nx3n_matrix[3*n+i][j])
+								     for j in xrange(m*3, 3*m+3)]
 
 
     """
@@ -187,11 +185,12 @@ def main(argv = None):
 # line 2: atom1 atom2
 # lines 3,4,5: IFC matrix for atom 1 and 2
 #
-# Permutaions use the following pattern: Pick atom 1 and write out its interations with all other atoms
-# For example, in a 5x5x5 supercell with 2 atoms, e.g. NaCl in the unit cell, the interaction between atoms 1 and 2
-# is the interaction between Na in cell (1,1,1) and Na in (2,1,1). 1-125 corresponds to Na(1,1,1) - Na(5,5,5), respectively.
-# Therefore the interaction between Na and Cl in (1,1,1) is given by the pair 1-126.   
-# The supercell is constructured by increasing x first, then y and then z.
+# Permutaions use the following pattern: Pick atom 1 and write out its interations with all
+# other atoms. For example, in a 5x5x5 supercell with 2 atoms, e.g. NaCl in the unit cell,
+# the interaction between atoms 1 and 2# is the interaction between Na in cell (1,1,1) and
+# Na in (2,1,1). 1-125 corresponds to Na(1,1,1) - Na(5,5,5), respectively. Therefore, the
+# interaction between Na and Cl in (1,1,1) is given by the pair 1-126. The supercell is 
+# constructured by increasing x first, then y and then z.
 
     ion_reset=0 
     indeces_array = []
@@ -204,33 +203,28 @@ def main(argv = None):
         
         divnx, dummy1 = divmod(every_atom, nx)
         divnxny, dummy2 = divmod(every_atom, nx*ny)
-
     	for every_ion in xrange(0,ions):	
         	for z in xrange(0,nz):
  			counter_z = z + divnxny + every_ion*nz
                         dummy3, modnz = divmod(counter_z, nz)
-			
 			for y in xrange(0,ny):					
                                 counter_y = y + divnx + z*ny + every_ion*nz*ny
                                 dummy4, modny = divmod(counter_y, ny)
-                                
 				for x in xrange(0,nx):				     
                                      counter_x = (x+ion_reset) + y*nx + z*ny*nx + every_ion*nz*ny*nx
                                      dummy5, modnx = divmod(counter_x-1,nx)                                     
-                                     indeces_array.append([int(every_atom+1), int((modnx+1+nx*modny+modnz*ny*nx + every_ion*nz*ny*nx))])
-                                 
-                                    
+                                     indeces_array.append([int(every_atom+1), 
+					int((modnx+1+nx*modny+modnz*ny*nx + every_ion*nz*ny*nx))])
+
     keylist = ifc_data.keys()
     keylist.sort()
     ifc_for_sheng=dict()
     i=0
     # go through all columns
-    for x in xrange(0,ions):
-        
+    for x in xrange(0,ions):        
         # do the process for all copies of atom (x) 
         # [just keep the same column and print its data again]
-        for lp in xrange(0,(nx*ny*nz)):
-             
+        for lp in xrange(0,(nx*ny*nz)):             
              # extract data from a column (given by x) for the interaction between
              # atom N with a given atom (defined by x above)
 	     for y in xrange(0,ions):
@@ -242,7 +236,7 @@ def main(argv = None):
                             ifc_for_sheng[ion_couple]= [ifc_data[key][ions*x+y]]
                             
     # Create the 2nd order file
-    f = open('FORCE_CONSTANTS_2ND', 'w') # use test name 'IFC2nd' for now
+    f = open('FORCE_CONSTANTS_2ND', 'w') 
     f_struct = '%4s' %str(nx*ny*nz*ions) + '\n'
     for key1 in sorted(ifc_for_sheng):
        f_struct += str(key1) + '\n'
@@ -253,10 +247,8 @@ def main(argv = None):
     f.write(f_struct)
     f.close()   
 
-#################################################################################################################################################
-
     # Create the control file   
-    f = open('CONTROL', 'w') # use test name 'CONTROL-CASTEP' for now
+    f = open('CONTROL', 'w') 
 
     f_control  = '&allocations' +'\n'
     f_control += '\tnelements=' + '%s,' %str(species) + '\n'  
@@ -307,12 +299,9 @@ def main(argv = None):
 
     f.write(f_control)
     f.close()                      
-####################################################################################################################################################
     print '||                        DONE                         ||'
     print '========================================================='
 
 if __name__ == "__main__":
     import sys
     sys.exit(main())
-
-
