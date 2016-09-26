@@ -18,48 +18,68 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-#  Using thirdorder_vasp.py as a basis to create thirdorder_castep.py
-#  1) start by converting [read_CASTEP_cell] to read_CASTEP
-#  2) make the [write_CASTEP_cell] output to a suitable castep form
-#  3) Find out what needs to be converted for the reap command 
-# Usage: 
-# sow ---> thirdorder_castep.py sow nx ny nz cutoff seedname
-# Example: thirdorder_castep.py sow 1 1 1 -3 InAs
-# reap --> find seedname-3RD/job* -name seedname.castep | sort -n| thirdorder_castep.py reap nx ny nz cutoff
-# Example: find InAs-3RD/job* -name InAs.castep | sort -n| thirdorder_castep.py reap 1 1 1 -3
-# Needed files: relaxed <seedname>.cell, recpots[usp are generated on the fly] in root dir and <seedname>.param   
-
-
+#
+#
+#
+#  CASTEP interface to thirdorder-v1.0.2 
+#  Written by Genadi Naydenov <gan503@york.ac.uk> University of York (2016) 
+#
+#                            CASTEP USAGE:
+#  SOW mode:
+# 	Input files: <seedname>.cell, <seedname.param>
+#
+#	Output files: <seedname>-3RD directory, which countains multiple
+#	job-<number> subdirs. Each subdir contains a supercell <seedname>.cell 
+#       file with small perturbation and a copy of the <seedname>.param file.
+#
+#	command: thirdorder_castep.py sow nx ny nz cutoff seedname 
+# 	Example: thirdorder_castep.py sow 1 1 1 -3 InAs
+#
+#  It is necessary to complete all jobs in <seedname>-3RD directory before proceeding
+#  to REAP mode. You can either use castep_run.sh, or write your own script to do so.
+#
+#  REAP mode:
+#	Input files: <seedname.castep> | thirdorder_castep.py goes through all 
+#       subdirectories in <seedname>-3RD and collects forces data.
+# 
+#	Output file: FORCE_CONSTANTS_3RD
+#
+#	command: find <seedname>-3RD/job* -name <seedname>.castep | sort -n|
+#			  thirdorder_castep.py reap nx ny nz cutoff seedname            
+# 	Example: find InAs-3RD/job* -name InAs.castep | sort -n|
+#				 thirdorder_castep.py reap 1 1 1 -3 seedname
+#
+#  Use FORCE_CONSTANTS_3RD file along with FORCE_CONSTANTS_2ND and CONTROL
+#  to perform a ShengBTE run.
+#
+#  Current LIMITATIONS: 
+#	- It is not possible to do spin polarised calculations
+#	  because spin will not be included in supercell files.
+#	- Initial <seedname>.cell file must be in the following format:
+#	  Lattice parameter, Cell contents AND THEN everything else.
+#	- Absolute coordinates are not supported.
+ 
 
 import os.path
-import glob
-try:
-    from lxml import etree as ElementTree
-    xmllib="lxml.etree"
-except ImportError:
-    try:
-        import xml.etree.cElementTree as ElementTree
-        xmllib="cElementTree"
-    except ImportError:
-        import xml.etree.ElementTree as ElementTree
-        xmllib="ElementTree"
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
-try:
-    import hashlib
-    hashes=True
-except ImportError:
-    hashes=False
-
 import sys
-sys.path.insert(0, '../')
+import glob
+import shutil
+# Path to thirdorder_core and thirdorder_common
+#path2thirdorder = '/usr/local/bin'
+#sys.path.insert(0, path2thirdorder)
+try:
+	import thirdorder_core
+except ImportError:
+	sys.exit('- thirdorder_core not found.\n'
+	'Check thirdorder installation or define path2thirdorder in thirdorder_castep.py')
+try:
+	from thirdorder_common import *
+except ImportError:
+	sys.exit('- thirdorder_common not found.\n'
+	'Check thirdorder installation or define path2thirdorder in thirdorder_castep.py')
 
-import thirdorder_core
-from thirdorder_common import *
-
+# Elements are sorted in accordance to 
+# this dictionary (atomic mass/Z number)
 symbol_map = {
     "H":1,
     "He":2,
@@ -181,6 +201,7 @@ symbol_map = {
     "Uuo":118,
     }
 
+# Sorting criterion
 def sort_elements(elem):    
     return symbol_map[elem[0]]
       
@@ -200,16 +221,12 @@ def read_CASTEP_cell(directory):
            if '%BLOCK lattice_cart' in line:              
               for i in xrange(3):
                   new_line = index + i + 1
-                  nruter["lattvec"][:,i]=[float(j) for j in castep_cell[new_line].split()]
-
-           
+                  nruter["lattvec"][:,i]=[float(j) 
+				for j in castep_cell[new_line].split()]           
            elif '%BLOCK positions_frac' in line:
                 index_start = index
-                
            elif '%ENDBLOCK positions_frac' in line:
                 index_end = index
-                
-        
         nruter["lattvec"]*=0.1
         for i in range(index_start+1, index_end):
                atoms_list.append(castep_cell[i].split())      
@@ -222,7 +239,8 @@ def read_CASTEP_cell(directory):
             nruter["elements"].append(str(atoms_list[i][0]))
         create_indices = nruter["elements"]
         nruter["elements"]=list(set(nruter["elements"]))
-        nruter["numbers"]= np.array([int(create_indices.count(nruter["elements"][i])) for i in range(len(nruter["elements"]))],dtype=np.intc)  
+        nruter["numbers"]= np.array([int(create_indices.count(nruter["elements"][i]))
+			      for i in range(len(nruter["elements"]))],dtype=np.intc)  
         nruter["types"]=[]
         for i in xrange(len(nruter["numbers"])):
              nruter["types"]+=[i]*nruter["numbers"][i]  
@@ -263,7 +281,6 @@ def write_CASTEP_cell(CASTEP_cell,filename):
     """
     Write the contents of <seedname>.cell to filename.
     """
-    
     f=open(seedname+".cell","r")
     castep_cell = f.readlines()
     global hashes
@@ -315,9 +332,8 @@ def normalize_CASTEP_supercell(CASTEP_supercell):
 
 def read_forces(filename):
     """
-    Read a set of forces on atoms from <seedname>.castep .
+    Read a set of forces on atoms from <seedname>.castep.
     """
-   
     f=open(filename,"r")
     castep_forces = f.readlines()
     f.close()    
@@ -328,10 +344,8 @@ def read_forces(filename):
          if 'Cartesian components (eV/A)' in line:
             starting_line = index + 4
             for i in range(n_atoms):
-                
                 f = starting_line + i
-                nruter.append([float(castep_forces[f].split()[m]) for m in range(3,6)])
-                print castep_forces[f]
+                nruter.append([float(castep_forces[f].split()[m]) for m in range(3,6)])                
     nruter=np.array(nruter,dtype=np.double)
     return nruter
 
@@ -401,7 +415,8 @@ if __name__=="__main__":
     if action=="sow":
         print sowblock
         print "Writing undisplaced coordinates to 3RD.%s.cell" %str(seedname)
-        write_CASTEP_cell(normalize_CASTEP_supercell(CASTEP_supercell),"3RD."+str(seedname)+".cell")
+        write_CASTEP_cell(normalize_CASTEP_supercell(CASTEP_supercell),
+						"3RD."+str(seedname)+".cell")
         width=len(str(4*(len(list4)+1)))
         namepattern="3RD."+str(seedname)+".{{0:0{0}d}}.cell".format(width)
         print "Writing displaced coordinates to 3RD.%s.*.cell" %str(seedname)
@@ -418,6 +433,25 @@ if __name__=="__main__":
                                    e[0],e[2],jsign*H))
                 filename=namepattern.format(number)
                 write_CASTEP_cell(displaced_CASTEP_supercell,filename)
+	# Copy supercell .cell files to <seedname>-3RD/job-<number>
+	cell_names = "3RD.%s.*.cell" %seedname
+	indices_list =[]
+	for i in range(len(sorted(glob.glob(cell_names)))):
+	   indices_list.append(str(i+1).zfill(len(str(len(sorted(glob.glob(cell_names)))))))
+	j=0
+	for i in sorted(glob.glob(cell_names)):
+ 		newpath = ((r'./%s-3RD/job-%s') % (seedname,indices_list[j]))
+ 		j+=1 
+ 		if not os.path.exists(newpath): os.makedirs(newpath)
+ 		shutil.move('%s' %i,'%s/%s.cell'%(newpath,seedname))
+                # Add .param file to every directory.
+ 		if not glob.glob('%s.param' %seedname): 
+			sys.exit('%s.param ' %seedname +'was not found.'
+                        ' Please provide a suitable .param file'
+			 'for a singlepoint energy calculation and try again!')
+ 		else: shutil.copy2('%s.param' %seedname,newpath)
+        print "\nCASTEP input files moved to %s-3RD successfully " %str(seedname)
+        print "{0} CASTEP jobs are prepared for submission".format(nruns)
     else:
         print reapblock
         print "Waiting for a list of %s.castep files on stdin" %str(seedname)
