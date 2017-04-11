@@ -232,12 +232,12 @@ def main(argv = None):
    		   for key in keylist: 
     			    i+=1       
      			    # here [i-1][0] and [i-1][1] define the direction of the forces
-                            ion_couple = '%4s' %indeces_array[i-1][0] + '%4s' %indeces_array[i-1][1]
+                            ion_couple = '%6s' %indeces_array[i-1][0] + '%6s' %indeces_array[i-1][1]
                             ifc_for_sheng[ion_couple]= [ifc_data[key][ions*x+y]]
                             
     # Create the 2nd order file
     f = open('FORCE_CONSTANTS_2ND', 'w') 
-    f_struct = '%4s' %str(nx*ny*nz*ions) + '\n'
+    f_struct = '%6s' %str(nx*ny*nz*ions) + '\n'
     for key1 in sorted(ifc_for_sheng):
        f_struct += str(key1) + '\n'
        for m in range(3):

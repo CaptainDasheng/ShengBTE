@@ -205,6 +205,8 @@ symbol_map = {
 def sort_elements(elem):    
     return symbol_map[elem[0]]
       
+def sort_elements2(elem2):    
+    return symbol_map[elem2]
 
 def read_CASTEP_cell(directory):
     """
@@ -231,7 +233,7 @@ def read_CASTEP_cell(directory):
         for i in range(index_start+1, index_end):
                atoms_list.append(castep_cell[i].split())      
 	atoms_list = filter(None,atoms_list)
-        atoms_list.sort(key=sort_elements) 
+        atoms_list.sort(key=sort_elements)
         natoms1 = len(atoms_list)
         nruter["positions"]=np.empty((3,natoms1))
         for i in range(natoms1):          
@@ -239,13 +241,14 @@ def read_CASTEP_cell(directory):
             nruter["elements"].append(str(atoms_list[i][0]))
         create_indices = nruter["elements"]
         nruter["elements"]=list(set(nruter["elements"]))
+        nruter["elements"].sort(key=sort_elements2)
         nruter["numbers"]= np.array([int(create_indices.count(nruter["elements"][i]))
 			      for i in range(len(nruter["elements"]))],dtype=np.intc)  
         nruter["types"]=[]
         for i in xrange(len(nruter["numbers"])):
-             nruter["types"]+=[i]*nruter["numbers"][i]  
+             nruter["types"]+=[i]*nruter["numbers"][i] 
     return nruter
-
+    
 
 def gen_CASTEP_supercell(CASTEP_cell,na,nb,nc):
     """
@@ -274,6 +277,7 @@ def gen_CASTEP_supercell(CASTEP_cell,na,nb,nc):
     nruter["types"]=[]
     for i in xrange(na*nb*nc):
         nruter["types"].extend(CASTEP_cell["types"])
+    # print "supercell", nruter
     return nruter
 
 
@@ -327,6 +331,7 @@ def normalize_CASTEP_supercell(CASTEP_supercell):
     indices=np.rollaxis(indices,3,0).flatten().tolist()
     nruter["positions"]=nruter["positions"][:,indices]
     nruter["types"].sort()
+    # print 'normalised', nruter
     return nruter
 
 
@@ -481,6 +486,7 @@ if __name__=="__main__":
             print "- \t {0} eV/(A * atom)".format(res)
         print "Computing an irreducible set of anharmonic force constants"
         phipart=np.zeros((3,nirred,ntot))
+        # print 'FORCES', forces
         for i,e in enumerate(list4):
             for n in xrange(4):
                 isign=(-1)**(n//2)
